@@ -2,6 +2,21 @@
 
 const SOLLIT_API_URL = "https://app.sollit.com/api/person";
 
+// Helper: type-woning omzetten naar mooie labels
+function formatTypeWoning(value) {
+  if (!value) return "";
+  const v = String(value).trim().toLowerCase();
+
+  const map = {
+    "vrijstaand": "Vrijstaand",
+    "2-onder-1-kap": "2-onder-1-kap",
+    "hoekwoning": "Hoekwoning",
+    "appartement": "Appartement"
+  };
+
+  return map[v] || value; // fallback: originele waarde
+}
+
 module.exports = async (req, res) => {
   // CORS voor Webflow
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -51,8 +66,12 @@ module.exports = async (req, res) => {
     jaarlijks_verbruik,
     product_type,
     comments,
-    request_type
+    request_type,
+    company_name,
+    type_woning
   } = body || {};
+
+  const formattedTypeWoning = formatTypeWoning(type_woning);
 
   // Payload richting Sollit
   const sollitPayload = {
@@ -73,13 +92,17 @@ module.exports = async (req, res) => {
     jaarlijks_verbruik: Number(jaarlijks_verbruik || 0),
     product_type: product_type || "solar_panel",
 
-    // 👇 0 = particulier, 1 = zakelijk
+    // 0 = particulier, 1 = zakelijk
     request_type: Number(request_type || 0),
+    company_name: company_name || "",
 
-    // optioneel later nog gebruiken
-    company_name: "",
+    // custom veld: type-woning
+    extra_fields_key: "type-woning",
+    extra_fields: {
+      "type-woning": formattedTypeWoning
+    },
 
-    source_site: "Website HLM Energy",
+    source_site: "Webflow formulier",
     source_site_url: ""
   };
 
@@ -98,7 +121,9 @@ module.exports = async (req, res) => {
     let data = {};
     try {
       data = await response.json();
-    } catch {}
+    } catch {
+      data = {};
+    }
 
     console.log("Sollit response:", response.status, data);
 
