@@ -18,18 +18,15 @@ function formatTypeWoning(value) {
 }
 
 module.exports = async (req, res) => {
-  // CORS voor Webflow
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Preflight
   if (req.method === "OPTIONS") {
     res.statusCode = 200;
     return res.end();
   }
 
-  // Alleen POST
   if (req.method !== "POST") {
     res.statusCode = 405;
     return res.json({ message: "Method not allowed" });
@@ -54,8 +51,6 @@ module.exports = async (req, res) => {
     }
   }
 
-  console.log("Incoming body:", body);
-
   const {
     postcode,
     number,
@@ -67,46 +62,46 @@ module.exports = async (req, res) => {
     comments,
     request_type,
     company_name,
-    product_type,   // komt uit Webflow (product-type)
-    type_woning     // komt uit Webflow (type-woning)
+    product_type,
+    type_woning
   } = body || {};
 
-  // Product type normaliseren + gebruiken voor meerdere velden
   const normalizedProductType = product_type || "solar_panel";
-
-  // Type woning netjes tekstueel
   const formattedTypeWoning = formatTypeWoning(type_woning);
+
+  // 🔥 Zakelijk status logic
+  let clientStatusId = undefined;
+  if (request_type == 1) {
+    clientStatusId = 212860; // zakelijk aangevinkt
+  }
 
   const sollitPayload = {
     skip_postcode_check: true,
     match_person_on_address: false,
 
-    // adres
     postcode: postcode || "",
     number: number || "",
-
-    // persoon
     first_name: first_name || "",
     last_name: last_name || "",
     email: email || "",
     telephone: telephone || "",
     mobile: "",
-
     comments: comments || "",
-
-    // verbruik
     jaarlijks_verbruik: Number(jaarlijks_verbruik || 0),
 
-    // 🔥 product info naar Sollit
+    // product info
     product_type: normalizedProductType,
     person_product_types: [normalizedProductType],
     person_product_types_string: normalizedProductType,
 
-    // 0 = particulier, 1 = zakelijk
+    // zakelijk/particulier
     request_type: Number(request_type || 0),
     company_name: company_name || "",
 
-    // extra veld type-woning
+    // 🔥 zakelijk status id
+    client_status_id: clientStatusId,
+
+    // extra velden
     extra_fields_key: "type-woning",
     extra_fields: {
       "type-woning": formattedTypeWoning
@@ -129,13 +124,7 @@ module.exports = async (req, res) => {
     });
 
     let data = {};
-    try {
-      data = await response.json();
-    } catch {
-      data = {};
-    }
-
-    console.log("Sollit response:", response.status, data);
+    try { data = await response.json(); } catch {}
 
     if (!response.ok) {
       res.statusCode = response.status;
@@ -150,8 +139,8 @@ module.exports = async (req, res) => {
       message: "Lead created successfully",
       sollitResponse: data
     });
+
   } catch (err) {
-    console.error("Server error:", err);
     res.statusCode = 500;
     return res.json({ message: "Server error" });
   }
