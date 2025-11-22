@@ -50,8 +50,9 @@ module.exports = async (req, res) => {
     telephone,
     jaarlijks_verbruik,
     product_type,
-    comments
-  } = body;
+    comments,
+    request_type
+  } = body || {};
 
   // Payload richting Sollit
   const sollitPayload = {
@@ -63,16 +64,20 @@ module.exports = async (req, res) => {
 
     first_name: first_name || "",
     last_name: last_name || "",
-
     email: email || "",
     telephone: telephone || "",
     mobile: "",
 
-    comments: comments || "",   // 👈 toegevoegd!
+    comments: comments || "",
 
     jaarlijks_verbruik: Number(jaarlijks_verbruik || 0),
-
     product_type: product_type || "solar_panel",
+
+    // 👇 0 = particulier, 1 = zakelijk
+    request_type: Number(request_type || 0),
+
+    // optioneel later nog gebruiken
+    company_name: "",
 
     source_site: "Webflow formulier",
     source_site_url: ""
