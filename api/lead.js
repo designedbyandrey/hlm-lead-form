@@ -75,16 +75,6 @@ module.exports = async (req, res) => {
     clientStatusId = 212860; // zakelijk aangevinkt
   }
 
-  // 🔥 Leadtype-ID op basis van product type (HEEL SIMPEL)
-  let leadTypeId;
-  if (normalizedProductType === "solar_panel") {
-    leadTypeId = 4000;
-  } else if (normalizedProductType === "charge_station") {
-    leadTypeId = 4408;
-  } else if (normalizedProductType === "battery") {
-    leadTypeId = 6920;
-  }
-
   const sollitPayload = {
     skip_postcode_check: true,
     match_person_on_address: false,
@@ -108,7 +98,7 @@ module.exports = async (req, res) => {
     request_type: Number(request_type || 0),
     company_name: company_name || "",
 
-    // zakelijk status id
+    // 🔥 zakelijk status id
     client_status_id: clientStatusId,
 
     // extra velden
@@ -120,11 +110,6 @@ module.exports = async (req, res) => {
     source_site: "Webflow formulier",
     source_site_url: ""
   };
-
-  // 👇 Alleen toevoegen als we daadwerkelijk een leadTypeId hebben
-  if (leadTypeId) {
-    sollitPayload.second_client_status_id = leadTypeId;
-  }
 
   console.log("Payload naar Sollit:", sollitPayload);
 
@@ -142,7 +127,6 @@ module.exports = async (req, res) => {
     try { data = await response.json(); } catch {}
 
     if (!response.ok) {
-      console.error("Sollit API error:", response.status, data);
       res.statusCode = response.status;
       return res.json({
         message: "Error from Sollit API",
@@ -157,7 +141,6 @@ module.exports = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Server error:", err);
     res.statusCode = 500;
     return res.json({ message: "Server error" });
   }
