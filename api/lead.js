@@ -37,13 +37,19 @@ module.exports = async (req, res) => {
 
   if (!apiKey) {
     console.error("Missing sollit_api_key env variable");
-    return res.status(500).json({ message: "Server config error" });
+    res.statusCode = 500;
+    return res.json({ message: "Server config error" });
   }
 
+  // Body normaliseren
   let body = req.body;
   if (typeof body === "string") {
-    try { body = JSON.parse(body); }
-    catch { return res.status(400).json({ message: "Invalid JSON" }); }
+    try {
+      body = JSON.parse(body);
+    } catch {
+      res.statusCode = 400;
+      return res.json({ message: "Invalid JSON" });
+    }
   }
 
   const {
@@ -68,7 +74,7 @@ module.exports = async (req, res) => {
   const formattedTypeWoning = formatTypeWoning(type_woning);
 
   // 🔥 Zakelijke client status
-  let clientStatusId = undefined;
+  let clientStatusId;
   if (request_type == 1) {
     clientStatusId = 212860; // zakelijke status ID
   }
@@ -82,7 +88,6 @@ module.exports = async (req, res) => {
 
   const secondClientStatusId = leadTypeMap[normalizedProductType] || null;
 
-  // Payload opbouwen
   const sollitPayload = {
     skip_postcode_check: true,
     match_person_on_address: false,
@@ -106,13 +111,13 @@ module.exports = async (req, res) => {
     request_type: Number(request_type || 0),
     company_name: company_name || "",
 
-    // 🔥 Zakelijke status (optioneel)
+    // 🔥 Zakelijke status
     client_status_id: clientStatusId,
 
     // 🔥 Leadtype afhankelijk van product type
     second_client_status_id: secondClientStatusId,
 
-    // Extra fields
+    // Extra veld type-woning
     extra_fields_key: "type-woning",
     extra_fields: {
       "type-woning": formattedTypeWoning
@@ -135,22 +140,29 @@ module.exports = async (req, res) => {
     });
 
     let data = {};
-    try { data = await response.json(); } catch {}
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
+    }
 
     if (!response.ok) {
-      return res.status(response.status).json({
+      console.error("Sollit API error:", response.status, data);
+      res.statusCode = response.status;
+      return res.json({
         message: "Error from Sollit API",
         details: data
       });
     }
 
-    res.status(200).json({
+    res.statusCode = 200;
+    return res.json({
       message: "Lead created successfully",
       sollitResponse: data
     });
-
   } catch (err) {
     console.error("Server error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.statusCode = 500;
+    return res.json({ message: "Server error" });
   }
 };
