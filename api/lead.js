@@ -18,7 +18,6 @@ function formatTypeWoning(value) {
 }
 
 module.exports = async (req, res) => {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -67,26 +66,14 @@ module.exports = async (req, res) => {
     type_woning
   } = body || {};
 
-  // Normaliseer product type
   const normalizedProductType = product_type || "solar_panel";
-
-  // Type-woning formatteren
   const formattedTypeWoning = formatTypeWoning(type_woning);
 
-  // 🔥 Zakelijke client status
-  let clientStatusId;
+  // 🔥 Zakelijk status logic
+  let clientStatusId = undefined;
   if (request_type == 1) {
-    clientStatusId = 212860; // zakelijke status ID
+    clientStatusId = 212860; // zakelijk aangevinkt
   }
-
-  // 🔥 Leadtype op basis van product type
-  const leadTypeMap = {
-    "solar_panel": 4000,
-    "charge_station": 4408,
-    "battery": 6920
-  };
-
-  const secondClientStatusId = leadTypeMap[normalizedProductType] || null;
 
   const sollitPayload = {
     skip_postcode_check: true,
@@ -102,22 +89,19 @@ module.exports = async (req, res) => {
     comments: comments || "",
     jaarlijks_verbruik: Number(jaarlijks_verbruik || 0),
 
-    // 🔥 Product info
+    // product info
     product_type: normalizedProductType,
     person_product_types: [normalizedProductType],
     person_product_types_string: normalizedProductType,
 
-    // 🔥 Zakelijk vs particulier
+    // zakelijk/particulier
     request_type: Number(request_type || 0),
     company_name: company_name || "",
 
-    // 🔥 Zakelijke status
+    // 🔥 zakelijk status id
     client_status_id: clientStatusId,
 
-    // 🔥 Leadtype afhankelijk van product type
-    second_client_status_id: secondClientStatusId,
-
-    // Extra veld type-woning
+    // extra velden
     extra_fields_key: "type-woning",
     extra_fields: {
       "type-woning": formattedTypeWoning
@@ -140,14 +124,9 @@ module.exports = async (req, res) => {
     });
 
     let data = {};
-    try {
-      data = await response.json();
-    } catch {
-      data = {};
-    }
+    try { data = await response.json(); } catch {}
 
     if (!response.ok) {
-      console.error("Sollit API error:", response.status, data);
       res.statusCode = response.status;
       return res.json({
         message: "Error from Sollit API",
@@ -160,8 +139,8 @@ module.exports = async (req, res) => {
       message: "Lead created successfully",
       sollitResponse: data
     });
+
   } catch (err) {
-    console.error("Server error:", err);
     res.statusCode = 500;
     return res.json({ message: "Server error" });
   }
