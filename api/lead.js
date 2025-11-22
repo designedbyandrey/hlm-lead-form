@@ -60,20 +60,31 @@ module.exports = async (req, res) => {
     telephone,
     jaarlijks_verbruik,
     comments,
-    request_type,
+    request_type,   // 0/1 vanuit Webflow (checkbox zakelijk)
     company_name,
-    product_type,
+    product_type,   // "solar_panel" / "battery" / "charge_station"
     type_woning
   } = body || {};
 
   const normalizedProductType = product_type || "solar_panel";
   const formattedTypeWoning = formatTypeWoning(type_woning);
 
-  // 🔥 Zakelijk status logic
+  // 🔥 Zakelijk status logic → gebruik originele request_type (0/1)
   let clientStatusId = undefined;
-  if (request_type == 1) {
-    clientStatusId = 212860; // zakelijk aangevinkt
+  const isBusiness = request_type == 1;
+  if (isBusiness) {
+    clientStatusId = 212860; // zakelijke status ID
   }
+
+  // 🔥 Product-ID voor Sollit in request_type
+  // Pas deze mapping aan als jouw echte IDs anders zijn
+  const requestTypeMap = {
+    solar_panel: 4000,
+    charge_station: 4408,
+    battery: 6920
+  };
+
+  const requestTypeForSollit = requestTypeMap[normalizedProductType] || 0;
 
   const sollitPayload = {
     skip_postcode_check: true,
@@ -94,11 +105,11 @@ module.exports = async (req, res) => {
     person_product_types: [normalizedProductType],
     person_product_types_string: normalizedProductType,
 
-    // zakelijk/particulier
-    request_type: Number(request_type || 0),
-    company_name: company_name || "",
+    // 🔥 request_type nu als PRODUCT-ID naar Sollit
+    request_type: requestTypeForSollit,
 
-    // 🔥 zakelijk status id
+    // zakelijk / particulier via status + company
+    company_name: company_name || "",
     client_status_id: clientStatusId,
 
     // extra velden
@@ -127,6 +138,7 @@ module.exports = async (req, res) => {
     try { data = await response.json(); } catch {}
 
     if (!response.ok) {
+      console.error("Sollit API error:", response.status, data);
       res.statusCode = response.status;
       return res.json({
         message: "Error from Sollit API",
@@ -141,6 +153,7 @@ module.exports = async (req, res) => {
     });
 
   } catch (err) {
+    console.error("Server error:", err);
     res.statusCode = 500;
     return res.json({ message: "Server error" });
   }
