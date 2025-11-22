@@ -2,7 +2,7 @@
 
 const SOLLIT_API_URL = "https://app.sollit.com/api/person";
 
-// Helper: type-woning omzetten naar mooie labels
+// Helper: type-woning formatteren
 function formatTypeWoning(value) {
   if (!value) return "";
   const v = String(value).trim().toLowerCase();
@@ -14,22 +14,19 @@ function formatTypeWoning(value) {
     "appartement": "Appartement"
   };
 
-  return map[v] || value; // fallback: originele waarde
+  return map[v] || value;
 }
 
 module.exports = async (req, res) => {
-  // CORS voor Webflow
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Preflight
   if (req.method === "OPTIONS") {
     res.statusCode = 200;
     return res.end();
   }
 
-  // Alleen POST
   if (req.method !== "POST") {
     res.statusCode = 405;
     return res.json({ message: "Method not allowed" });
@@ -43,7 +40,6 @@ module.exports = async (req, res) => {
     return res.json({ message: "Server config error" });
   }
 
-  // Body normaliseren
   let body = req.body;
   if (typeof body === "string") {
     try {
@@ -64,39 +60,37 @@ module.exports = async (req, res) => {
     email,
     telephone,
     jaarlijks_verbruik,
-    product_type,
     comments,
     request_type,
     company_name,
+    product_type,
     type_woning
   } = body || {};
 
   const formattedTypeWoning = formatTypeWoning(type_woning);
 
-  // Payload richting Sollit
   const sollitPayload = {
     skip_postcode_check: true,
     match_person_on_address: false,
 
     postcode: postcode || "",
     number: number || "",
-
     first_name: first_name || "",
     last_name: last_name || "",
     email: email || "",
     telephone: telephone || "",
     mobile: "",
-
     comments: comments || "",
-
     jaarlijks_verbruik: Number(jaarlijks_verbruik || 0),
+
+    // product type uit formulier
     product_type: product_type || "solar_panel",
 
-    // 0 = particulier, 1 = zakelijk
+    // particulier / zakelijk
     request_type: Number(request_type || 0),
     company_name: company_name || "",
 
-    // custom veld: type-woning
+    // extra veld type-woning
     extra_fields_key: "type-woning",
     extra_fields: {
       "type-woning": formattedTypeWoning
@@ -121,9 +115,7 @@ module.exports = async (req, res) => {
     let data = {};
     try {
       data = await response.json();
-    } catch {
-      data = {};
-    }
+    } catch {}
 
     console.log("Sollit response:", response.status, data);
 
