@@ -66,26 +66,24 @@ module.exports = async (req, res) => {
     type_woning
   } = body || {};
 
-  // Normaliseer product type
   const normalizedProductType = product_type || "solar_panel";
-
-  // Type-woning formatteren
   const formattedTypeWoning = formatTypeWoning(type_woning);
 
-  // 🔥 Zakelijke status logic
+  // 🔥 Zakelijk status logic
   let clientStatusId = undefined;
   if (request_type == 1) {
     clientStatusId = 212860; // zakelijk aangevinkt
   }
 
-  // 🔥 Leadtype op basis van product type
-  const leadTypeMap = {
-    solar_panel: 4000,
-    charge_station: 4408,
-    battery: 6920
-  };
-
-  const secondClientStatusId = leadTypeMap[normalizedProductType] || null;
+  // 🔥 Leadtype-ID op basis van product type (HEEL SIMPEL)
+  let leadTypeId;
+  if (normalizedProductType === "solar_panel") {
+    leadTypeId = 4000;
+  } else if (normalizedProductType === "charge_station") {
+    leadTypeId = 4408;
+  } else if (normalizedProductType === "battery") {
+    leadTypeId = 6920;
+  }
 
   const sollitPayload = {
     skip_postcode_check: true,
@@ -113,9 +111,6 @@ module.exports = async (req, res) => {
     // zakelijk status id
     client_status_id: clientStatusId,
 
-    // leadtype o.b.v. product type
-    second_client_status_id: secondClientStatusId,
-
     // extra velden
     extra_fields_key: "type-woning",
     extra_fields: {
@@ -125,6 +120,11 @@ module.exports = async (req, res) => {
     source_site: "Webflow formulier",
     source_site_url: ""
   };
+
+  // 👇 Alleen toevoegen als we daadwerkelijk een leadTypeId hebben
+  if (leadTypeId) {
+    sollitPayload.second_client_status_id = leadTypeId;
+  }
 
   console.log("Payload naar Sollit:", sollitPayload);
 
@@ -139,11 +139,7 @@ module.exports = async (req, res) => {
     });
 
     let data = {};
-    try {
-      data = await response.json();
-    } catch {
-      data = {};
-    }
+    try { data = await response.json(); } catch {}
 
     if (!response.ok) {
       console.error("Sollit API error:", response.status, data);
@@ -159,6 +155,7 @@ module.exports = async (req, res) => {
       message: "Lead created successfully",
       sollitResponse: data
     });
+
   } catch (err) {
     console.error("Server error:", err);
     res.statusCode = 500;
