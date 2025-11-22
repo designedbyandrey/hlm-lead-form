@@ -4,17 +4,17 @@ const SOLLIT_API_URL = "https://app.sollit.com/api/person";
 
 module.exports = async (req, res) => {
   // CORS voor Webflow
-  res.setHeader("Access-Control-Allow-Origin", "*"); // vervang * later evt. door jouw Webflow domein
+  res.setHeader("Access-Control-Allow-Origin", "*"); // eventueel vervangen door je Webflow domein
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Preflight request
+  // Preflight
   if (req.method === "OPTIONS") {
     res.statusCode = 200;
     return res.end();
   }
 
-  // Alleen POST toestaan
+  // Alleen POST
   if (req.method !== "POST") {
     res.statusCode = 405;
     return res.json({ message: "Method not allowed" });
@@ -44,11 +44,14 @@ module.exports = async (req, res) => {
     number,
     first_name,
     last_name,
+    email,
+    telephone,
+    mobile,
     jaarlijks_verbruik,
     product_type
   } = body;
 
-  // Basic checks
+  // Vereiste velden
   if (!postcode || !number || !first_name || !last_name) {
     res.statusCode = 400;
     return res.json({ message: "Vereiste velden ontbreken" });
@@ -57,10 +60,19 @@ module.exports = async (req, res) => {
   const sollitPayload = {
     skip_postcode_check: true,
     match_person_on_address: false,
+
+    // adres
     postcode,
     number,
+
+    // persoon
     first_name,
     last_name,
+    email: email || "",
+    telephone: telephone || "",
+    mobile: mobile || "",
+
+    // verbruik + product
     jaarlijks_verbruik: Number(jaarlijks_verbruik || 0),
     product_type: product_type || "solar_panel"
   };
@@ -79,7 +91,6 @@ module.exports = async (req, res) => {
     try {
       data = await response.json();
     } catch (e) {
-      // soms geen JSON body
       data = {};
     }
 
