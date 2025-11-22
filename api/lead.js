@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
     return res.end();
   }
 
-  // Alleen POST
+  // Alleen POST toegestaan
   if (req.method !== "POST") {
     res.statusCode = 405;
     return res.json({ message: "Method not allowed" });
@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
     return res.json({ message: "Server config error" });
   }
 
-  // Body kan string of object zijn
+  // Body kan string of object zijn (afhankelijk van Vercel parsing)
   let body = req.body || {};
   if (typeof body === "string") {
     try {
@@ -39,6 +39,8 @@ module.exports = async (req, res) => {
     }
   }
 
+  console.log("Incoming body from Webflow:", body);
+
   const {
     postcode,
     number,
@@ -46,36 +48,35 @@ module.exports = async (req, res) => {
     last_name,
     email,
     telephone,
-    mobile,
     jaarlijks_verbruik,
     product_type
   } = body;
 
-  // Vereiste velden
-  if (!postcode || !number || !first_name || !last_name) {
-    res.statusCode = 400;
-    return res.json({ message: "Vereiste velden ontbreken" });
-  }
-
+  // Maak payload voor Sollit – alleen de velden die we echt gebruiken
   const sollitPayload = {
-    skip_postcode_check: true,
+    skip_postcode_check: true,          // we vullen niet alle adresvelden in
     match_person_on_address: false,
 
-    // adres
-    postcode,
-    number,
+    postcode: postcode || "",
+    number: number || "",
 
-    // persoon
-    first_name,
-    last_name,
+    first_name: first_name || "",
+    last_name: last_name || "",
     email: email || "",
     telephone: telephone || "",
-    mobile: mobile || "",
+    // mobile laten we leeg voor nu
+    mobile: "",
 
-    // verbruik + product
     jaarlijks_verbruik: Number(jaarlijks_verbruik || 0),
-    product_type: product_type || "solar_panel"
+
+    product_type: product_type || "solar_panel",
+
+    // optioneel kun je deze vullen als je wilt
+    source_site: "Webflow formulier",
+    source_site_url: "" // kun je bv. window.location.origin in frontend meegeven en hier doorsturen
   };
+
+  console.log("Payload naar Sollit:", sollitPayload);
 
   try {
     const response = await fetch(SOLLIT_API_URL, {
@@ -94,8 +95,9 @@ module.exports = async (req, res) => {
       data = {};
     }
 
+    console.log("Response van Sollit:", response.status, data);
+
     if (!response.ok) {
-      console.error("Sollit API error:", data);
       res.statusCode = response.status;
       return res.json({
         message: "Error from Sollit API",
