@@ -17,16 +17,6 @@ function formatTypeWoning(value) {
   return map[v] || value;
 }
 
-// Optioneel: nette labeltjes voor netaansluiting
-function formatNetConnection(value) {
-  if (!value) return "";
-  const v = String(value).trim().toLowerCase();
-  if (v === "1-fase") return "1-fase";
-  if (v === "3-fase") return "3-fase";
-  if (v === "weet-ik-niet") return "Onbekend";
-  return value;
-}
-
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
@@ -70,22 +60,29 @@ module.exports = async (req, res) => {
     telephone,
     jaarlijks_verbruik,
     comments,
-    request_type,   // 0/1 vanuit Webflow (checkbox zakelijk)
+    request_type,   // 0/1 uit Webflow (zakelijk)
     company_name,
     product_type,
-    type_woning,
-    net_connection   // 🔥 nieuw uit frontend
+    type_woning
   } = body || {};
 
   const normalizedProductType = product_type || "solar_panel";
   const formattedTypeWoning = formatTypeWoning(type_woning);
-  const formattedNetConnection = formatNetConnection(net_connection);
 
-  // 🔥 Zakelijk status logic
+  // 🔥 Zakelijk status logic (gebruik 0/1 van Webflow alleen hiervoor)
   let clientStatusId = undefined;
   if (request_type == 1) {
     clientStatusId = 212860; // zakelijk aangevinkt
   }
+
+  // 🔥 Product-ID mapping voor request_type richting Sollit
+  const requestTypeMap = {
+    solar_panel: 4000,
+    charge_station: 4408,
+    battery: 6920
+  };
+
+  const requestTypeForSollit = requestTypeMap[normalizedProductType] || 0;
 
   const sollitPayload = {
     skip_postcode_check: true,
@@ -106,16 +103,17 @@ module.exports = async (req, res) => {
     person_product_types: [normalizedProductType],
     person_product_types_string: normalizedProductType,
 
-    // zakelijk/particulier
-    request_type: 0, // ← hier nu alleen producttype IDs zou kunnen, maar jij gebruikt 'm nu niet actief
+    // 🔥 hier sturen we nu de PRODUCT-ID naar Sollit
+    request_type: requestTypeForSollit,
+
+    // zakelijk/particulier via status + company
     company_name: company_name || "",
     client_status_id: clientStatusId,
 
     // extra velden
-    extra_fields_key: "webflow-extra",
+    extra_fields_key: "type-woning",
     extra_fields: {
-      "type-woning": formattedTypeWoning,
-      "net-aansluiting": formattedNetConnection
+      "type-woning": formattedTypeWoning
     },
 
     source_site: "Webflow formulier",
