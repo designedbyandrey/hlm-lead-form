@@ -17,6 +17,16 @@ function formatTypeWoning(value) {
   return map[v] || value;
 }
 
+// Optioneel: nette labeltjes voor netaansluiting
+function formatNetConnection(value) {
+  if (!value) return "";
+  const v = String(value).trim().toLowerCase();
+  if (v === "1-fase") return "1-fase";
+  if (v === "3-fase") return "3-fase";
+  if (v === "weet-ik-niet") return "Onbekend";
+  return value;
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
@@ -62,29 +72,20 @@ module.exports = async (req, res) => {
     comments,
     request_type,   // 0/1 vanuit Webflow (checkbox zakelijk)
     company_name,
-    product_type,   // "solar_panel" / "battery" / "charge_station"
-    type_woning
+    product_type,
+    type_woning,
+    net_connection   // 🔥 nieuw uit frontend
   } = body || {};
 
   const normalizedProductType = product_type || "solar_panel";
   const formattedTypeWoning = formatTypeWoning(type_woning);
+  const formattedNetConnection = formatNetConnection(net_connection);
 
-  // 🔥 Zakelijk status logic → gebruik originele request_type (0/1)
+  // 🔥 Zakelijk status logic
   let clientStatusId = undefined;
-  const isBusiness = request_type == 1;
-  if (isBusiness) {
-    clientStatusId = 212860; // zakelijke status ID
+  if (request_type == 1) {
+    clientStatusId = 212860; // zakelijk aangevinkt
   }
-
-  // 🔥 Product-ID voor Sollit in request_type
-  // Pas deze mapping aan als jouw echte IDs anders zijn
-  const requestTypeMap = {
-    solar_panel: 4000,
-    charge_station: 4408,
-    battery: 6920
-  };
-
-  const requestTypeForSollit = requestTypeMap[normalizedProductType] || 0;
 
   const sollitPayload = {
     skip_postcode_check: true,
@@ -105,17 +106,16 @@ module.exports = async (req, res) => {
     person_product_types: [normalizedProductType],
     person_product_types_string: normalizedProductType,
 
-    // 🔥 request_type nu als PRODUCT-ID naar Sollit
-    request_type: requestTypeForSollit,
-
-    // zakelijk / particulier via status + company
+    // zakelijk/particulier
+    request_type: 0, // ← hier nu alleen producttype IDs zou kunnen, maar jij gebruikt 'm nu niet actief
     company_name: company_name || "",
     client_status_id: clientStatusId,
 
     // extra velden
-    extra_fields_key: "type-woning",
+    extra_fields_key: "webflow-extra",
     extra_fields: {
-      "type-woning": formattedTypeWoning
+      "type-woning": formattedTypeWoning,
+      "net-aansluiting": formattedNetConnection
     },
 
     source_site: "Webflow formulier",
