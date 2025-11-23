@@ -133,10 +133,10 @@ module.exports = async (req, res) => {
     client_status_id: clientStatusId,
 
     // 🔥 extra velden (woningtype + netaansluiting)
-    extra_fields_key: "webflow-extra",
+    extra_fields_key: "Extra velden",
     extra_fields: extraFields,
 
-    source_site: "Webflow formulier",
+    source_site: "Website Formulier",
     source_site_url: ""
   };
 
