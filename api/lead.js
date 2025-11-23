@@ -17,6 +17,16 @@ function formatTypeWoning(value) {
   return map[v] || value;
 }
 
+// Helper: netaansluiting formatteren
+function formatNetConnection(value) {
+  if (!value) return "";
+  const v = String(value).trim().toLowerCase();
+  if (v === "1-fase") return "1-fase";
+  if (v === "3-fase") return "3-fase";
+  if (v === "weet-ik-niet") return "Onbekend";
+  return value;
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
@@ -60,29 +70,41 @@ module.exports = async (req, res) => {
     telephone,
     jaarlijks_verbruik,
     comments,
-    request_type,   // 0/1 uit Webflow (zakelijk)
+    request_type,    // 0/1 uit Webflow (alleen voor zakelijk-flag)
     company_name,
-    product_type,
-    type_woning
+    product_type,    // "solar_panel" / "battery" / "charge_station"
+    type_woning,
+    net_connection   // "1-fase" / "3-fase" / "weet-ik-niet"
   } = body || {};
 
   const normalizedProductType = product_type || "solar_panel";
   const formattedTypeWoning = formatTypeWoning(type_woning);
+  const formattedNetConnection = formatNetConnection(net_connection);
 
-  // 🔥 Zakelijk status logic (gebruik 0/1 van Webflow alleen hiervoor)
+  // 🔥 Zakelijk status logic (alleen voor client_status_id)
   let clientStatusId = undefined;
   if (request_type == 1) {
     clientStatusId = 212860; // zakelijk aangevinkt
   }
 
   // 🔥 Product-ID mapping voor request_type richting Sollit
+  // Pas deze IDs aan als jouw echte product/aanvraag IDs anders zijn
   const requestTypeMap = {
     solar_panel: 4000,
-    charge_station: 4408,
-    battery: 6920
+    battery: 6920,
+    charge_station: 4408
   };
 
   const requestTypeForSollit = requestTypeMap[normalizedProductType] || 0;
+
+  // Extra velden opbouwen
+  const extraFields = {};
+  if (formattedTypeWoning) {
+    extraFields["type-woning"] = formattedTypeWoning;
+  }
+  if (formattedNetConnection) {
+    extraFields["net-aansluiting"] = formattedNetConnection;
+  }
 
   const sollitPayload = {
     skip_postcode_check: true,
@@ -98,23 +120,21 @@ module.exports = async (req, res) => {
     comments: comments || "",
     jaarlijks_verbruik: Number(jaarlijks_verbruik || 0),
 
-    // product info
+    // 🔥 product info
     product_type: normalizedProductType,
     person_product_types: [normalizedProductType],
     person_product_types_string: normalizedProductType,
 
-    // 🔥 hier sturen we nu de PRODUCT-ID naar Sollit
+    // 🔥 request_type als PRODUCT-ID naar Sollit
     request_type: requestTypeForSollit,
 
-    // zakelijk/particulier via status + company
+    // 🔥 zakelijk status via client_status_id
     company_name: company_name || "",
     client_status_id: clientStatusId,
 
-    // extra velden
-    extra_fields_key: "type-woning",
-    extra_fields: {
-      "type-woning": formattedTypeWoning
-    },
+    // 🔥 extra velden (woningtype + netaansluiting)
+    extra_fields_key: "webflow-extra",
+    extra_fields: extraFields,
 
     source_site: "Webflow formulier",
     source_site_url: ""
